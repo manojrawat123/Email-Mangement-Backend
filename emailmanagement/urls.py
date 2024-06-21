@@ -25,11 +25,10 @@ from invoice.views import InvoiceListCreateView, InvoiceDetailCustomView
 from dispute.views import DisputeDetailsViews
 from myusersession.views import CustomTokenObtainPairView,VerifySessionView, UserRegisterView, GetAllUserView, ResetPassword, ForgotPassword
 # from countrycode.views import CountryEntryView
+from payments.views import PaymentView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # Auth Urls
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('session/', VerifySessionView.as_view(), name='token_obtain_pair'),
     path('register/', UserRegisterView.as_view(), name='register_user'),
@@ -61,7 +60,8 @@ urlpatterns = [
     path('getinvoices/', InvoiceDetailCustomView.as_view(), name='invoice-list-create'),
     path('getinvoices/<int:id>/', InvoiceDetailCustomView.as_view(), name='invoice-list-create'),
     path('dispute/', DisputeDetailsViews.as_view(), name='invoice-list-create'),
+    path('payment/', PaymentView.as_view(), name='invoice-list-create'),
+    path('payment/<int:id>/', PaymentView.as_view(), name='invoice-list-create'),
     path('dispute/<int:id>/', DisputeDetailsViews.as_view(), name='invoice-list-create'),
     path('invoices/<int:id>/', InvoiceDetailCustomView.as_view(), name='invoice-detail')
 ]
-

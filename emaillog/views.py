@@ -14,7 +14,7 @@ from customer.serializers import CustomerSerializer
 from emailtemplate.models import EmailTemplate
 from emailtemplate.serializers import EmailTemplateSerializers
 from toproutes.models import Route
-from emaillog.data_to_html import data_to_styled_html_table
+from emaillog.data_to_html import data_to_styled_html_table, data_to_styled_html_table_react
 from rest_framework.permissions import IsAuthenticated
 from rate.models import RateTabel
 from customer_rate.models import CustomerRateTable

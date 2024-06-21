@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-l7f=)@==*fn--t^)1afkw7=r_!1g@jl-i_5v+t*@3+&q)$m80c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'myusersession',
     'countrycode',
     'invoice',
-    'dispute'
+    'dispute',
+    'payments'
 ]
 
 MIDDLEWARE = [
@@ -159,7 +160,7 @@ SIMPLE_JWT = {
 }
 
 # Optional: Allow all headers and methods for simplicity in development
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

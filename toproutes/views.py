@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from toproutes.models import Route
 from django.db.models import Q
-from emaillog.data_to_html import data_to_styled_html_table, data_to_styled_html_table_rate
+from emaillog.data_to_html import data_to_styled_html_table, data_to_styled_html_table_rate,data_to_styled_html_table_react
 from toproutes.serializer import TopRouteSerializer
 from rest_framework.permissions import IsAuthenticated
 from rate.models import RateTabel
@@ -169,9 +169,11 @@ class GetTopRouteTable(APIView):
                         for route in top_route_name
                     ]
                 html_data = data_to_styled_html_table(email_data)
+                react_data = data_to_styled_html_table_react(email_data)
                 return Response({
                     "html_data" : html_data,
-                    "normal_data" : email_data 
+                    "normal_data" : email_data ,
+                    "react_data" : react_data
                 } , status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
