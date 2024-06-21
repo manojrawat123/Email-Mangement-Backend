@@ -1,23 +1,68 @@
-# serializers.py
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from myusersession.models import CompanyUser
+from django.contrib.auth.hashers import make_password
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-
+class MyUserSerializers(serializers.ModelSerializer):
+    password2 = serializers.CharField(style={"input_type":"password"}, write_only = True)
     class Meta:
-        model = User
-        fields = ['username', 'email','first_name', 'last_name' ,'password','id' ]
+        model = CompanyUser
+        fields = ["email","company_name", "company_phone", "password", "password2"]
+        extra_kwargs = {
+            'password':{'write_only': True}
+        }
 
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
+    def validate(self, attrs):
+        password = attrs.get("password")
+        password2 = attrs.get("password2")
+        if password != password2:
+            raise serializers.ValidationError("Password Didn't match")
+        return attrs
     
+    def create(self, validate_data):
+        validate_data.pop('password2')
+        return CompanyUser.objects.create_user(**validate_data)
     
+    def update(self, instance, validated_data):
+        password = validated_data.get('password')
+        if password:
+            instance.password = make_password(password)
+        instance.save()
+        return instance
 
-class UserGetSerializer(serializers.ModelSerializer):
-    active = serializers.BooleanField(source='is_active')
+class MyUserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ['username', 'email','first_name', 'last_name','id', 'active' ]
+        model = CompanyUser
+        fields = "__all__"   
+
     
+class MyUserLoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(max_length = 225)
+    class Meta:
+        model = CompanyUser
+        fields = ["email", "password"]
+
+    def validate(self, data):
+        for field_name, value in data.items():
+            if value == "":
+                raise serializers.ValidationError(f"{field_name} field is required.")
+        return data
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = CompanyUser
+    fields = "__all__"
+
+
+
+class CompanyUserDetailCompanyViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyUser
+        fields = ["id","name", "address"]
+
+class InternAuthCompanyUserViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyUser
+        fields = ["id","name","email", "phone", "address"]
+
+# Z6SAGCK6X5V2Y6P72AF14ZAM

@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from myusersession.serializers import UserRegistrationSerializer, UserGetSerializer
+from myusersession.serializers import MyUserSerializers , MyUserLoginSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from myusersession.htmlcontent import emailVerifyContent
@@ -16,10 +16,37 @@ from django.db.models import Q
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from myusersession.models import CompanyUser
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     pass
+
+def get_token_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
+class UserLoginView(APIView):
+    def post(self, request, id =None):
+        try:
+            serializers = MyUserLoginSerializer(data=request.data)
+            if serializers.is_valid(raise_exception=True):
+                email = serializers.data.get("email")
+                password = serializers.data.get("password")
+                user = authenticate(email = email, password = password)
+                if user is not None:
+                    token = get_token_for_user(user)
+                    return Response({'token': token,"user_type": user.user_type, 'msg': "User Login Sucessfully"})
+                else:
+                    return Response({"error" : "No User Found"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
 class VerifySessionView(APIView):
     permission_classes = [IsAuthenticated]
@@ -31,7 +58,7 @@ class VerifySessionView(APIView):
 
 class UserRegisterView(APIView):
     def post(self, request, id=None):
-        serializer = UserRegistrationSerializer(data=request.data)
+        serializer = MyUserSerializers(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -41,8 +68,8 @@ class GetAllUserView(APIView):
     permission_classes = [IsAdminUser]
     def get(self, request, id = None):
         try:
-            all_user = User.objects.all() 
-            user_serialzer = UserGetSerializer(all_user, many=True)
+            all_user = CompanyUser.objects.all() 
+            user_serialzer = MyUserSerializers(all_user, many=True)
             return Response(user_serialzer.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
@@ -54,7 +81,7 @@ class GetAllUserView(APIView):
             s_user = User.objects.get(id = id)
             if s_user:
                 request.data['password'] = make_password(request.data.get('password'))
-                user_serializer = UserRegistrationSerializer(s_user, data=request.data, partial=True) 
+                user_serializer = MyUserSerializers(s_user, data=request.data, partial=True) 
                 if user_serializer.is_valid():
                     user_serializer.save()
                     return Response({"message" : "user Updated Successfully"})  
@@ -113,7 +140,7 @@ class ResetPassword(APIView):
             if default_token_generator.check_token(user,token):
                 h_password = make_password(password)
                 print(h_password)
-                serializer = UserRegistrationSerializer(user, data={"password" : h_password}, partial=True)
+                serializer = MyUserSerializers(user, data={"password" : h_password}, partial=True)
                 if serializer.is_valid():
                     serializer.save()
                     return Response({"message": "Password Reset Successfully"}, status=status.HTTP_200_OK)
