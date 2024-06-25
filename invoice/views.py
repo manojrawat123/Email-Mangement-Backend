@@ -9,6 +9,8 @@ from django.utils.timezone import make_aware
 from rest_framework import status
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
+from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
 
 class InvoiceListCreateView(generics.ListCreateAPIView):
     queryset = Invoice.objects.all()
@@ -16,18 +18,37 @@ class InvoiceListCreateView(generics.ListCreateAPIView):
 
 
 class InvoiceDetailCustomView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, id = None):
+        try:
+            invoice_serializer = InvoiceSerializer(data={ **request.data, "user_id" : request.user.id })
+            if invoice_serializer.is_valid():
+                invoice_serializer.save()
+                return Response({"message" : "Invoice Saved Successfully!!"})
+            else:
+                return Response(invoice_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     def get(self, request, id = None):
         from_date = request.GET.get('invoice_from_date')
         to_date = request.GET.get('invoice_to_date')
         customer_id = request.GET.get("customer_id")
+        invoice_type = request.GET.get("invoice_type")
         try:
             from_date = datetime.strptime(f"{from_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
             to_date = datetime.strptime(f"{to_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
         except (ValueError, TypeError):
-            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+            from_date = 'all'
+            to_date = 'all'
+            # return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
         if from_date or to_date or customer_id:
-            invoice = Invoice.objects.filter(created_date__range=[from_date, to_date],
-                customer_id=customer_id)
+            invoice_d = Invoice.objects.filter(user_id = request.user.id)
+            if from_date == 'all' and to_date == 'all':
+                invoice = invoice_d.filter(Q(invoice_type = invoice_type) & Q(customer_id=customer_id))
+            else:
+                invoice = invoice_d.filter(Q(created_date__range=[from_date, to_date]) &
+                    Q(customer_id=customer_id))
             invoice_serializer = InvoiceSerializer(invoice, many=True)
             return Response(invoice_serializer.data, status=status.HTTP_200_OK)
         else:
@@ -35,7 +56,7 @@ class InvoiceDetailCustomView(APIView):
         
     def put(self, request, id= None):
         try:
-            invoice = Invoice.objects.get(id = id)
+            invoice = Invoice.objects.get(Q(id = id) & Q(user_id = request.user.id))
             invoice_serializer = InvoiceSerializer(invoice, data=request.data, partial =True)
             if invoice_serializer.is_valid():
                 invoice_serializer.save()
@@ -49,7 +70,7 @@ class InvoiceDetailCustomView(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status = status.HTTP_400_BAD_REQUEST)
             else:
-                invoice = Invoice.objects.get(id = id)
+                invoice = Invoice.objects.get(Q(id = id) & Q(user_id = request.user.id))
                 invoice.active = not invoice.active
                 invoice.save()
                 return Response({"message" : "Data Updated Successfully"}, status=status.HTTP_200_OK)

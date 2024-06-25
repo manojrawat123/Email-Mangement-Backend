@@ -1,7 +1,6 @@
 from invoice.models import Invoice
 from rest_framework import serializers
 
-
 class InvoiceSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
     class Meta:

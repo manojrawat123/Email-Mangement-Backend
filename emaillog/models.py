@@ -1,9 +1,11 @@
 from django.db import models
-from customer.models import Customer  # Import the Customer model from your app
+from companycustomer.models import Customer  # Import the Customer model from your app
 from emailtemplate.models import EmailTemplate  # Import the EmailTemplate model from your app
+from myusersession.models import CompanyUser
 
 class EmailLog(models.Model):
-    log_id = models.AutoField(primary_key=True)
+    log_id = models.AutoField(primary_key=True)    
+    user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
     template_id = models.ForeignKey(EmailTemplate, on_delete=models.CASCADE)
     customer_id = models.ManyToManyField(Customer)

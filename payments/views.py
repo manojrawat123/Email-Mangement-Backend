@@ -9,14 +9,14 @@ from rest_framework import status
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 from payments.models import Payment
+from django.db.models import Q
 
 # Create your views here.
 
 class PaymentView(APIView):
     def post(self,request, id =None):
         try:
-            print('hii')
-            payment_serializer = PaymentSerializers(data=request.data)
+            payment_serializer = PaymentSerializers(data={**request.data, "user_id" : request.user.id })
             if payment_serializer.is_valid():
                 payment_serializer.save()
                 return Response({"message" : "Payment Saved Successfully!!"}, status=status.HTTP_200_OK)
@@ -26,7 +26,7 @@ class PaymentView(APIView):
         except Exception as e:
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        pass
+
     def get(self, request, id = None):
         from_date = request.GET.get('payment_from_date')
         to_date = request.GET.get('payment_to_date')
@@ -37,22 +37,21 @@ class PaymentView(APIView):
         except (ValueError, TypeError):
             return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
         if from_date or to_date or customer_id:
-            invoice = Payment.objects.filter(created_date__range=[from_date, to_date],
-                customer_id=customer_id)
-            invoice_serializer = PaymentSerializers(invoice, many=True)
-            return Response(invoice_serializer.data, status=status.HTTP_200_OK)
+            payment = Payment.objects.filter(Q(created_date__range=[from_date, to_date]) & Q(customer_id=customer_id) & Q(user_id = request.user.id))
+            payment_serializer = PaymentSerializers(payment, many=True)
+            return Response(payment_serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({"error" : "Query did not exist"}, status=status.HTTP_400_BAD_REQUEST)
         
     def put(self, request, id= None):
         try:
-            invoice = Payment.objects.get(id = id)
-            invoice_serializer = PaymentSerializers(invoice, data=request.data, partial =True)
-            if invoice_serializer.is_valid():
-                invoice_serializer.save()
+            payment = Payment.objects.get(Q(id = id) & Q(user_id = request.user.id))
+            payment_serializer = PaymentSerializers(payment, data=request.data, partial =True)
+            if payment_serializer.is_valid():
+                payment_serializer.save()
                 return Response({"message" : "Data Updated Successfully"}, status=status.HTTP_200_OK)
             else:
-                return Response(invoice_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response(payment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     def delete(self, request, id =None):
@@ -60,9 +59,9 @@ class PaymentView(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status = status.HTTP_400_BAD_REQUEST)
             else:
-                invoice = Payment.objects.get(id = id)
-                invoice.active = not invoice.active
-                invoice.save()
+                payment = Payment.objects.get(Q(id = id) & Q(user_id = request.user.id))
+                payment.active = not payment.active
+                payment.save()
                 return Response({"message" : "Data Updated Successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

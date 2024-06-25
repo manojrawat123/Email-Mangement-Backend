@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from myusersession.serializers import MyUserSerializers , MyUserLoginSerializer
+from myusersession.serializers import MyUserSerializers , MyUserLoginSerializer,MyUserRegisterSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from myusersession.htmlcontent import emailVerifyContent
@@ -69,7 +69,7 @@ class GetAllUserView(APIView):
     def get(self, request, id = None):
         try:
             all_user = CompanyUser.objects.all() 
-            user_serialzer = MyUserSerializers(all_user, many=True)
+            user_serialzer = MyUserRegisterSerializer(all_user, many=True)
             return Response(user_serialzer.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
@@ -78,7 +78,7 @@ class GetAllUserView(APIView):
         try:
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            s_user = User.objects.get(id = id)
+            s_user = CompanyUser.objects.get(id = id)
             if s_user:
                 request.data['password'] = make_password(request.data.get('password'))
                 user_serializer = MyUserSerializers(s_user, data=request.data, partial=True) 
@@ -97,7 +97,7 @@ class GetAllUserView(APIView):
             print("Hii")
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            s_user = User.objects.get(id = id)
+            s_user = CompanyUser.objects.get(id = id)
             if s_user:
                 if s_user.is_active == False:
                     s_user.is_active = True
@@ -119,7 +119,7 @@ class ForgotPassword(APIView):
                 "email" : request.data.get('email'),
                 "domain" : domain_name
             })
-            user = User.objects.get(Q(email = request.data.get("email")))
+            user = CompanyUser.objects.get(Q(email = request.data.get("email")))
             if user is None:
                 return Response({"error" : "Email Didn't exist"}, status=status.HTTP_400_BAD_REQUEST)
             else:
@@ -136,7 +136,7 @@ class ResetPassword(APIView):
             password = request.data.get('password')
             pk = urlsafe_base64_decode(userid_encode)
             print(pk)
-            user = User.objects.get(pk= pk)
+            user = CompanyUser.objects.get(pk= pk)
             if default_token_generator.check_token(user,token):
                 h_password = make_password(password)
                 print(h_password)

@@ -20,7 +20,7 @@ class AddTopRoutes(APIView):
             df = pd.read_excel(excel_file)
             top_route = request.data.get("route_name")
             required_columns = ["Route", "Profile", "Rate", "ASR", "ACD", "Increment"]
-            all_top_route = Route.objects.filter(top_route_name = top_route)
+            all_top_route = Route.objects.filter(Q(top_route_name = top_route) & Q(user_id = request.user.id))
             if len(all_top_route) != 0:
                 return Response({"error" : "Route Name should unique"}, status=status.HTTP_400_BAD_REQUEST)
             if not all(column in df.columns for column in required_columns):
@@ -42,7 +42,8 @@ class AddTopRoutes(APIView):
             for index, row in df.iterrows():
                 try:
                     route = Route.objects.get(
-                        Q(top_route_name = top_route) & Q(destination = row["Route"]))
+                        Q(top_route_name = top_route) & Q(destination = row["Route"]) & Q(user_id = request.user.id)
+                    )
                     route.destination = row["Route"]
                     route.profile = row["Profile"]
                     route.rate = row["Rate"]
@@ -62,6 +63,7 @@ class AddTopRoutes(APIView):
                         asr = row["ASR"]  ,
                         acd  =row["ACD"]  ,
                         increment=  row["Increment"] ,
+                        user_id = request.user,
                         status = True
                     ))
             Route.objects.bulk_create(objs)
@@ -75,8 +77,7 @@ class AddTopRoutes(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status = status.HTTP_405_METHOD_NOT_ALLOWED)
             else:
-                top_route = Route.objects.get(id = id)
-                print(request.data)
+                top_route = Route.objects.get(Q(id = id) & Q(user_id = request.user.id))
                 top_route_serializer = TopRouteSerializer(top_route, data=request.data, partial =True)
                 if top_route_serializer.is_valid():
                     top_route_serializer.save()
@@ -93,11 +94,12 @@ class AddTopRoutes(APIView):
             return Response({"error" : "Method Not Allowed"}, status=status.HTTP_400_BAD_REQUEST)
         else:
             try:
-                route = Route.objects.get(id = id)
+                route = Route.objects.get(Q(id = id) & Q(user_id = request.user.id))
                 route.delete()
                 return Response({"error" : "Data Removed Successfully!!"}, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class GetTopRouteTable(APIView):
     permission_classes = [IsAuthenticated]
@@ -116,7 +118,6 @@ class GetTopRouteTable(APIView):
                     if missing_fields:
                         error_message = f"Missing values in columns {missing_fields} in row {index + 1}"
                         return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
-                # Check types of fields
                 objs = []
                 for column in required_columns:
                     if column not in ["ASR", "Rate"] and not isinstance(row[column], str):
@@ -134,10 +135,10 @@ class GetTopRouteTable(APIView):
                             asr = row["ASR"]  ,
                             acd  =row["ACD"]  ,
                             increment=  row["Increment"] ,
-                            status = True
+                            status = True,
+                            user_id = request.user
                         ))
-                route_all = Route.objects.filter(top_route_name = route_id)
-                print(len(route_all))
+                route_all = Route.objects.filter(Q(top_route_name = route_id) & Q(user_id = request.user.id))
                 route_all.delete()
                 Route.objects.bulk_create(objs)
                 return Response({"messsage" : "Data Updated Successfully"})
@@ -149,10 +150,9 @@ class GetTopRouteTable(APIView):
         try:
             route_id = request.query_params.get("route_id")
             if route_id is None:
-                print("hii")
                 return Response({"error" : "Please Provide Route Id"}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                top_route_name = Route.objects.filter(top_route_name = route_id)
+                top_route_name = Route.objects.filter(Q(top_route_name = route_id) & Q(user_id = request.user.id))
                 if len(top_route_name) == 0:
                     return Response({"error" : "No data for selected top route"}, status=status.HTTP_400_BAD_REQUEST)
                 email_data = [
@@ -164,7 +164,8 @@ class GetTopRouteTable(APIView):
                             "rate": f"{route.rate:.4f}",  
                             "asr": route.asr,
                             "acd": route.acd,
-                            "increment": route.increment
+                            "increment": route.increment,
+                            "user_id" : request.user.id
                         }
                         for route in top_route_name
                     ]

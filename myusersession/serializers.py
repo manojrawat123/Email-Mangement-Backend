@@ -30,11 +30,14 @@ class MyUserSerializers(serializers.ModelSerializer):
         return instance
 
 class MyUserRegisterSerializer(serializers.ModelSerializer):
+    active = serializers.SerializerMethodField()
     class Meta:
         model = CompanyUser
-        fields = "__all__"   
+        exclude = ["password"] 
+    def get_active(self, obj):
+        return obj.is_active
 
-    
+
 class MyUserLoginSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(max_length = 225)
     class Meta:
