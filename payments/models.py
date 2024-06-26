@@ -9,7 +9,7 @@ class Payment(models.Model):
     user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2)
     bank_charges = models.DecimalField(max_digits=10, decimal_places=2)
-    other_charges = models.DecimalField(max_digits=10, decimal_places=2)
+    other_charges = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
     payment_mode = models.CharField(max_length=50)
     description = models.TextField(blank=True, null=True)

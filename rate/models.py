@@ -4,6 +4,7 @@ from customer_rate.models import CustomerRateTable
 from myusersession.models import CompanyUser
 
 class RateTabel(models.Model):
+
     country_code = models.CharField(max_length=100)
     country_name = models.CharField(max_length=255)
     customer_rate_id = models.ForeignKey(CustomerRateTable, on_delete=models.CASCADE)
@@ -16,6 +17,5 @@ class RateTabel(models.Model):
     created_date = models.DateField(default=timezone.now)
     rate_status = models.CharField(max_length=20)
 
-   
     def __str__(self):
         return f"{self.country_code} - {self.country_name}"

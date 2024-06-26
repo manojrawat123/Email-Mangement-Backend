@@ -16,6 +16,9 @@ from django.db.models import Sum
 from dispute.models import Dispute
 from dispute.serializer import DisputeSerialzer
 from payments.models import Payment
+from vendorrate.models import VendorRate
+from vendorratetabel.models import VendorRateTabel
+from vendorratetabel.serializer import VendorRateTabelSerializer
 
 class CustomerViews(APIView):
     permission_classes = [IsAuthenticated]
@@ -100,11 +103,29 @@ class SearchPageApiView(APIView):
                     "page" : search_page,
                     "data" : distinct_routes
                 }, status=status.HTTP_200_OK)
+            elif search_page == "vendor_rate_page":
+                customer = Customer.objects.filter(Q(user_id = request.user.id) & Q(active = True))
+                customer_serializer = CustomerSerializer(customer, many=True)
+
+                # Customer Rate Data
+                customer_rate_data = VendorRateTabel.objects.filter(Q(user_id = request.user.id))
+                customer_rate_serializer = VendorRateTabelSerializer(customer_rate_data, many=True)
+                return Response({
+                    "customer" : customer_serializer.data,
+                    "customer_rate" : customer_rate_serializer.data,
+                    "page" : search_page
+                    # "data" : distinct_routes 
+                    }, status=status.HTTP_200_OK)
             elif search_page == "get_country":
                 if id is None:
                     return Response({"error" : "Please give Rate ID Page"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    distinct_rate = RateTabel.objects.filter(Q(customer_rate_id = id) & Q(user_id = request.user.id)).values_list('country_name' , flat=True).distinct()
+                    distinct_rate = []
+                    if request.GET.get('url') == '/search-vendor-rate':
+                        print()
+                        distinct_rate = VendorRate.objects.filter(Q(user_id = request.user.id)).values_list('country_name' , flat=True).distinct()
+                    else:
+                        distinct_rate = RateTabel.objects.filter(Q(customer_rate_id = id) & Q(user_id = request.user.id)).values_list('country_name' , flat=True).distinct()
                     return Response({"country" : distinct_rate}, status = status.HTTP_200_OK)
         except Exception as e:
             print(e)
