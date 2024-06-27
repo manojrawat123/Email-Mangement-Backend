@@ -28,7 +28,8 @@ from dispute.views import DisputeDetailsViews
 from myusersession.views import CustomTokenObtainPairView,VerifySessionView, UserRegisterView, GetAllUserView, ResetPassword, ForgotPassword
 from country.views import CountryEntryView
 from payments.views import PaymentView
-from vendorrate.views import VendorRateTableViews,VendorRateSearchViewOrUpdate
+from vendorrate.views import VendorRateTableViews,VendorRateSearchViewOrUpdate, VendorRateByCountryCode
+from vendorratetabel.views import VendorRateTabelView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -72,5 +73,8 @@ urlpatterns = [
     path('vendorrate/', VendorRateTableViews.as_view(), name='vendor-rate'),
     path('vendorrate/<int:id>/', VendorRateTableViews.as_view(), name='vendor-rate'),
     path('vendorratesearch/', VendorRateSearchViewOrUpdate.as_view(), name='vendor-rate'),
-    path('vendorratesearch/<int:id>/', VendorRateSearchViewOrUpdate.as_view(), name='vendor-rate')
+    path('vendorratesearch/<int:id>/', VendorRateSearchViewOrUpdate.as_view(), name='vendor-rate'),
+    path('addvendorratepage/', VendorRateTabelView.as_view(), name='vendor-rate-tabel'),
+    path('vendorratebycountrycode/', VendorRateByCountryCode.as_view(), name='vendor-rate-country-code'),
 ]
+ 

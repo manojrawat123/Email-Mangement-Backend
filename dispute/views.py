@@ -16,7 +16,7 @@ from dispute.serializer import DisputeSerialzer
 from datetime import datetime, timedelta
 from dispute.models import Dispute
 from dispute.serializer import DisputeSerialzer
-from django.db.models import Q
+from django.db.models import Q,Subquery
 from rest_framework.permissions import IsAuthenticated
 
 class DisputeDetailsViews(APIView):
@@ -30,7 +30,11 @@ class DisputeDetailsViews(APIView):
 
             # Select Invoices
             two_months_ago = timezone.now() - timedelta(days=60)
-            invoice = Invoice.objects.filter(Q(created_date__gte=two_months_ago) & Q(user_id = request.user.id)).order_by('-created_date')
+            disputed_invoices = Dispute.objects.filter(active=True).values('invoice_number')
+            invoice = Invoice.objects.filter(Q(created_date__gte=two_months_ago) & Q(user_id = request.user.id)).exclude(
+        Q(id__in=Subquery(disputed_invoices))
+    ).order_by('-created_date')
+
             invoice_serializer = InvoiceSerializer(invoice, many=True)
             return Response({
                 "customer" : customer_serializer.data,

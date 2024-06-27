@@ -131,6 +131,20 @@ class VendorRateTableViews(APIView):
         email_schedule.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)  
 
+class VendorRateByCountryCode(APIView):
+    def get(self, request, id = None):
+        try:
+            country_code = request.GET.get("country_codes")
+            rate_tabel = VendorRate.objects.filter(Q(country_name = country_code))
+            rate_serializer = VendorRateSerializer(rate_tabel, many=True)
+            for i in rate_serializer.data:
+                vendor_rate_tabel = VendorRateTabel.objects.get(id = i['vendor_rate_id'])
+                i['vendor_rate_id_name'] = vendor_rate_tabel.vendor_rate_name
+                i["customer_name"] = vendor_rate_tabel.customer_id.customer_name
+            return Response(rate_serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"error"  : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VendorRateSearchViewOrUpdate(APIView):
     permission_classes = [IsAuthenticated]
