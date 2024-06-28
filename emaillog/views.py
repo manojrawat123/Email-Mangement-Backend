@@ -31,20 +31,20 @@ class EmailLogView(APIView):
             serializer = EmailLogSerializer(data)
             return Response(serializer.data)
         else:
-            customer_data = Customer.objects.filter(Q(active = True) & Q(user_id = request.user.id))
+            customer_data = Customer.objects.filter(Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             customer_serializer = CustomerSerializer(customer_data, many=True)
 
             # Email Templates
-            email_template_data = EmailTemplate.objects.filter(Q(user_id = request.user.id))
+            email_template_data = EmailTemplate.objects.filter((Q(user_id = request.user.id) | Q(user_id = request.user.parent_user)))
             email_template_serializer = EmailTemplateSerializers(email_template_data, many=True)
 
-            distinct_rate = RateTabel.objects.filter(Q(user_id = request.user.id)).values_list('country_name' , flat=True).distinct()
-            distinct_routes = Route.objects.filter(Q(user_id = request.user.id)).values_list('top_route_name', flat=True).distinct()
+            distinct_rate = RateTabel.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_name' , flat=True).distinct()
+            distinct_routes = Route.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('top_route_name', flat=True).distinct()
 
             route_list = list(distinct_routes)
 
             # Customer Rate Tabel
-            customer_rates = CustomerRateTable.objects.filter(Q(user_id = request.user.id))
+            customer_rates = CustomerRateTable.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             customer_rate_serializer = CustomerRateSerializer(customer_rates, many=True)
 
             return Response({

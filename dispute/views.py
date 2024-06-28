@@ -25,7 +25,7 @@ class DisputeDetailsViews(APIView):
         page =  request.GET.get('page')
         if page in ['true', True, "True"]:
             # Get Customers
-            customer = Customer.objects.filter(Q(active = True) & Q(user_id = request.user.id))
+            customer = Customer.objects.filter(Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             customer_serializer = CustomerSerializer(customer, many=True)
 
             # Select Invoices
@@ -53,7 +53,7 @@ class DisputeDetailsViews(APIView):
             
             if from_date or to_date or customer_id:
                 dispute = Dispute.objects.filter(Q(created_date__range=[from_date, to_date]) & 
-                    Q(customer_id=customer_id) & Q(user_id = request.user.id))
+                    Q(customer_id=customer_id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
                 dispute_serializer = DisputeSerialzer(dispute, many=True)
                 return Response(dispute_serializer.data, status=status.HTTP_200_OK)
             else:

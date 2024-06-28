@@ -48,6 +48,7 @@ class CompanyUser(AbstractBaseUser):
         max_length=255,
         unique=True,
     )
+    parent_user = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     company_name = models.CharField(max_length=300)
     company_address = models.TextField()
     company_phone = models.IntegerField()
@@ -57,13 +58,15 @@ class CompanyUser(AbstractBaseUser):
     is_superuser = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
+    company_admin = models.BooleanField(default=False)
     objects = CompanyUserManager()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["company_name", "company_phone"]
 
     def __str__(self):
-        return self.name
+        return self.company_name
+    
     def __str__(self):
         return self.email
 

@@ -52,23 +52,37 @@ class VerifySessionView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
         if request.user:
-            return Response({"session" : True}, status=status.HTTP_200_OK)
+            if request.user.company_admin:
+                return Response({"session" : True, "is_company" : True }, status=status.HTTP_200_OK)
+            else:
+                return Response({"session" : True, "is_company" : False }, status=status.HTTP_200_OK)
         else:
             return Response({"error" : "User Register Successfully !!"}, status=status.HTTP_400_BAD_REQUEST)
 
 class UserRegisterView(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request, id=None):
-        serializer = MyUserSerializers(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if (request.user.company_admin):
+            serializer = MyUserSerializers(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                try:
+                    user = CompanyUser.objects.get(email = serializer.data.get('email'))
+                    user.is_active = True
+                    user.parent_user = request.user
+                    user.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    return Response({"error" : e}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"error" : "You are not authenticated to make user"}, status=status.HTTP_400_BAD_REQUEST)
 
 class GetAllUserView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
         try:
-            all_user = CompanyUser.objects.all() 
+            all_user = CompanyUser.objects.filter(parent_user = request.user.id) 
             user_serialzer = MyUserRegisterSerializer(all_user, many=True)
             return Response(user_serialzer.data, status=status.HTTP_200_OK)
         except Exception as e:

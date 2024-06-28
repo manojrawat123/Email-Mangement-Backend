@@ -25,7 +25,7 @@ class VendorRateTableViews(APIView):
             return Response(serializer.data)
         else:
             # Customer 
-            customer_data = Customer.objects.filter(Q(active = True) & Q(user_id = request.user.id))
+            customer_data = Customer.objects.filter(Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             customer_serialzer = CustomerSerializer(customer_data, many=True)
 
             # Management Profile
@@ -47,7 +47,17 @@ class VendorRateTableViews(APIView):
         try:
             if pk is not None:
                 return Response({"Err": "Post Method Not allowed"})
-            radio_value = request.data.get("radio_value")
+            try:
+                rate_tabel = VendorRateTabel.objects.get(Q(vendor_rate_name = request.data.get('vendor_rate_name')) & (Q(user_id__parent_user = request.user.parent_user) | Q(user_id__parent_user = request.user.id) | Q(user_id = request.user.parent_user)))            
+                if rate_tabel is not None:
+                    return Response({"error" : "Rate Name should unique"}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                try:
+                    customer_prefix = VendorRateTabel.objects.get(Q(vendor_prefix = request.data.get('vendor_prefix')) & (Q(user_id__parent_user = request.user.parent_user) | Q(user_id__parent_user = request.user.id) | Q(user_id = request.user.parent_user)))             
+                    if customer_prefix is not None:
+                        return Response({"error" : "Customer Prefix should unique"}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as e:
+                    pass
             data = {
                 'customer_id': request.data.get('customer_id'),
                 'vendor_rate_name': request.data.get('vendor_rate_name'),
@@ -135,13 +145,24 @@ class VendorRateByCountryCode(APIView):
     def get(self, request, id = None):
         try:
             country_code = request.GET.get("country_codes")
-            rate_tabel = VendorRate.objects.filter(Q(country_name = country_code))
+            
+            # Country Code
+            rate_tabel = VendorRate.objects.filter(Q(country_name = country_code) & ((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))))
             rate_serializer = VendorRateSerializer(rate_tabel, many=True)
+
+            # Distinct Rate
+            distinct_rate = VendorRate.objects.filter(
+                    (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)) & Q(vendor_rate_id__customer_id__active=True)
+                ).values_list('country_name', flat=True).distinct()
             for i in rate_serializer.data:
                 vendor_rate_tabel = VendorRateTabel.objects.get(id = i['vendor_rate_id'])
                 i['vendor_rate_id_name'] = vendor_rate_tabel.vendor_rate_name
                 i["customer_name"] = vendor_rate_tabel.customer_id.customer_name
-            return Response(rate_serializer.data, status=status.HTTP_200_OK)
+                
+            return Response({
+                "data" : rate_serializer.data,
+                "country_list" : distinct_rate 
+                }, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
             return Response({"error"  : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

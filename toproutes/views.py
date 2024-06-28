@@ -20,7 +20,8 @@ class AddTopRoutes(APIView):
             df = pd.read_excel(excel_file)
             top_route = request.data.get("route_name")
             required_columns = ["Route", "Profile", "Rate", "ASR", "ACD", "Increment"]
-            all_top_route = Route.objects.filter(Q(top_route_name = top_route) & Q(user_id = request.user.id))
+            all_top_route = Route.objects.filter(Q(top_route_name = top_route) & (Q(user_id = request.user.id) |
+                                                                                   Q(user_id__parent_user = request.user.parent_user)))
             if len(all_top_route) != 0:
                 return Response({"error" : "Route Name should unique"}, status=status.HTTP_400_BAD_REQUEST)
             if not all(column in df.columns for column in required_columns):
