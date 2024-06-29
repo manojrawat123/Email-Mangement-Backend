@@ -6,7 +6,7 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'customer_name',
-        'company_name',
+        # 'company_name',
         'company_phone',
         'rates_email',
         'billing_email',
@@ -19,5 +19,5 @@ class CustomerAdmin(admin.ModelAdmin):
     )
 
     list_filter = ('status', 'dnd')
-    search_fields = ('customer_name', 'company_name', 'manager_name', 'manager_email')
+    search_fields = ('customer_name', 'manager_name', 'manager_email')
     list_per_page = 20

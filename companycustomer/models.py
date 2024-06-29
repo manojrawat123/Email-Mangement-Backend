@@ -5,7 +5,7 @@ from country.models import CountryCode
 class Customer(models.Model):
     customer_name = models.CharField(max_length=100)
     user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
-    company_name = models.CharField(max_length=100)
+    # company_name = models.CharField(max_length=100)
     company_phone = models.CharField(max_length=15)
     rates_email = models.EmailField()
     billing_email = models.EmailField()

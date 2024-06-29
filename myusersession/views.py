@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from myusersession.serializers import MyUserSerializers , MyUserLoginSerializer,MyUserRegisterSerializer
+from myusersession.serializers import MyUserSerializers , MyUserLoginSerializer,MyUserRegisterSerializer,CompanyUserUpdateSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from myusersession.htmlcontent import emailVerifyContent
@@ -52,6 +52,7 @@ class VerifySessionView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
         if request.user:
+            print(request.user.company_admin)
             if request.user.company_admin:
                 return Response({"session" : True, "is_company" : True }, status=status.HTTP_200_OK)
             else:
@@ -63,7 +64,7 @@ class UserRegisterView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, id=None):
         if (request.user.company_admin):
-            serializer = MyUserSerializers(data=request.data)
+            serializer = MyUserSerializers(data={**request.data, "company_name" : request.user.company_name})
             if serializer.is_valid():
                 serializer.save()
                 try:
@@ -82,8 +83,15 @@ class GetAllUserView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
         try:
-            all_user = CompanyUser.objects.filter(parent_user = request.user.id) 
+            all_user = CompanyUser.objects.filter(Q(parent_user = request.user.id) | Q(id = request.user.id)) 
             user_serialzer = MyUserRegisterSerializer(all_user, many=True)
+            for i in user_serialzer.data:
+                if i['parent_user'] is not None:
+                    print(i['parent_user'])
+                    i['added_by'] = CompanyUser.objects.get(id = i['parent_user']).user_name
+                else:
+                    i['added_by'] = 'Admin'
+            print(user_serialzer.data)
             return Response(user_serialzer.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
@@ -94,8 +102,12 @@ class GetAllUserView(APIView):
                 return Response({"error" : "Method Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
             s_user = CompanyUser.objects.get(id = id)
             if s_user:
+                # if 'password' in request.data:
+                
+                # request.data['password2'] = make_password(request.data.get('password'))
                 request.data['password'] = make_password(request.data.get('password'))
-                user_serializer = MyUserSerializers(s_user, data=request.data, partial=True) 
+                print(request.data.get('password') == request.data.get('password2'))
+                user_serializer = CompanyUserUpdateSerializer(s_user, data=request.data, partial=True) 
                 if user_serializer.is_valid():
                     user_serializer.save()
                     return Response({"message" : "user Updated Successfully"})  
@@ -105,6 +117,7 @@ class GetAllUserView(APIView):
                 return Response({"error" : "User Not Found"}, status= status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(e)
+            print(request.data)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     def delete(self, request, id =None):
         try:

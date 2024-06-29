@@ -49,6 +49,7 @@ class CompanyUser(AbstractBaseUser):
         unique=True,
     )
     parent_user = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    user_name = models.CharField(max_length=300)
     company_name = models.CharField(max_length=300)
     company_address = models.TextField()
     company_phone = models.IntegerField()

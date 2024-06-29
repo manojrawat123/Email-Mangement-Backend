@@ -63,9 +63,9 @@ class CompanyUserDetailCompanyViewSerializer(serializers.ModelSerializer):
         model = CompanyUser
         fields = ["id","name", "address"]
 
-class InternAuthCompanyUserViewSerializer(serializers.ModelSerializer):
+class CompanyUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyUser
-        fields = ["id","name","email", "phone", "address"]
+        fields = ["id", "company_name", "email", "company_phone", "password"]
 
 # Z6SAGCK6X5V2Y6P72AF14ZAM
