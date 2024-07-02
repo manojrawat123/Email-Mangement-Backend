@@ -139,6 +139,11 @@ class SearchPageApiView(APIView):
                     else:
                         distinct_rate = RateTabel.objects.filter(Q(customer_rate_id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_name' , flat=True).distinct()
                     return Response({"country" : distinct_rate}, status = status.HTTP_200_OK)
+            elif search_page == "country_code":
+                country_name = request.GET.get('country')
+                distinct_code = VendorRate.objects.filter(Q(country_name = country_name) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_code' , flat=True).distinct()
+                return Response({"country_code" : distinct_code}, status=status.HTTP_200_OK)
+
         except Exception as e:
             print(e)
             return Response({"error" : "internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)

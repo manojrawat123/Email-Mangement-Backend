@@ -171,10 +171,10 @@ class VendorTargetSheetByCountryCode(APIView):
         try:
             # country_code = request.GET.get("country_codes")
             country_name = request.GET.get('country_name')
-
+            country_code = request.GET.get('country_code')
             # Country Code
             rate_tabel = VendorRate.objects.filter(
-                Q(country_name=country_name) & 
+                (Q(country_name=country_name) & Q(country_code = country_code)) & 
                 (Q(user_id=request.user.id) | Q(user_id__parent_user=request.user.id))
             )
             rate_serializer = VendorRateGetSerializer(rate_tabel, many=True)
@@ -183,7 +183,7 @@ class VendorTargetSheetByCountryCode(APIView):
             distinct_rate = VendorRate.objects.filter(
                 Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id) & 
                 Q(vendor_rate_id__customer_id__active = True) 
-            ).values_list('country_name', flat=True).distinct()
+            ).values_list('country_name', 'country_code').distinct()
             
             # Prepare the data for collapsing
             print(len(rate_serializer.data))
@@ -255,7 +255,7 @@ class VendorRateSearchViewOrUpdate(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
             else:
-                rate = VendorRate.objects.get(Q(id = id) & Q(user_id = request.user.id))
+                rate = VendorRate.objects.get(Q(id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
                 rate.delete()
                 return Response({"message" : "Updated Successfully"}, status=status.HTTP_200_OK)
         except Exception as e: 

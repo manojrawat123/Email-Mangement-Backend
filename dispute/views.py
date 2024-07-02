@@ -44,13 +44,15 @@ class DisputeDetailsViews(APIView):
             from_date = request.GET.get('dispute_from_date')
             to_date = request.GET.get('dispute_to_date')
             customer_id = request.GET.get("customer_id")
+            dispute_type = request.GET.get("dispute_type")
             try:
                 from_date = datetime.strptime(f"{from_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
                 to_date = datetime.strptime(f"{to_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
             except Exception as e:
-                print(e)
-                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
-            
+                dispute = Dispute.objects.filter(Q(dispute_type = dispute_type) &
+                    Q(customer_id=customer_id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+                dispute_serializer = DisputeSerialzer(dispute, many=True)
+                return Response(dispute_serializer.data, status = status.HTTP_200_OK)            
             if from_date or to_date or customer_id:
                 dispute = Dispute.objects.filter(Q(created_date__range=[from_date, to_date]) & 
                     Q(customer_id=customer_id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
@@ -72,7 +74,7 @@ class DisputeDetailsViews(APIView):
         
     def put(self, request, id= None):
         try:
-            dispute = Dispute.objects.get(Q(id = id) & Q(user_id = request.user.id))
+            dispute = Dispute.objects.get(Q(id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             dispute_serializer = DisputeSerialzer(dispute, data=request.data, partial =True)
             if dispute_serializer.is_valid():
                 dispute_serializer.save()
@@ -86,7 +88,7 @@ class DisputeDetailsViews(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status = status.HTTP_400_BAD_REQUEST)
             else:
-                dispute = Dispute.objects.get(Q(id = id) & Q(user_id = request.user.id))
+                dispute = Dispute.objects.get(Q(id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
                 dispute.active = not dispute.active
                 dispute.save()
                 return Response({"message" : "Data Updated Successfully"}, status=status.HTTP_200_OK)

@@ -31,13 +31,16 @@ class PaymentView(APIView):
         from_date = request.GET.get('payment_from_date')
         to_date = request.GET.get('payment_to_date')
         customer_id = request.GET.get("customer_id")
+        payment_type = request.GET.get("payment_type")
         try:
             from_date = datetime.strptime(f"{from_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
             to_date = datetime.strptime(f"{to_date}", "%Y-%m-%d").strftime("%Y-%m-%dT23:59:00Z")
         except (ValueError, TypeError):
-            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+            payment = Payment.objects.filter(Q(customer_id=customer_id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+            payment_serializer = PaymentSerializers(payment, many=True)
+            return Response(payment_serializer.data, status=status.HTTP_200_OK)
         if from_date or to_date or customer_id:
-            payment = Payment.objects.filter(Q(created_date__range=[from_date, to_date]) & Q(customer_id=customer_id) & Q(user_id = request.user.id))
+            payment = Payment.objects.filter(Q(created_date__range=[from_date, to_date]) & Q(customer_id=customer_id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             payment_serializer = PaymentSerializers(payment, many=True)
             return Response(payment_serializer.data, status=status.HTTP_200_OK)
         else:
