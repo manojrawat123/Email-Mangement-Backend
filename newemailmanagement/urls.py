@@ -28,7 +28,7 @@ from dispute.views import DisputeDetailsViews
 from myusersession.views import CustomTokenObtainPairView,VerifySessionView, UserRegisterView, GetAllUserView, ResetPassword, ForgotPassword
 from country.views import CountryEntryView
 from payments.views import PaymentView
-from vendorrate.views import VendorRateTableViews,VendorRateSearchViewOrUpdate, VendorRateByCountryCode
+from vendorrate.views import VendorRateTableViews,VendorRateSearchViewOrUpdate, VendorRateByCountryCode,VendorTargetSheetByCountryCode
 from vendorratetabel.views import VendorRateTabelView
 
 urlpatterns = [
@@ -67,6 +67,7 @@ urlpatterns = [
     path('dispute/', DisputeDetailsViews.as_view(), name='invoice-list-create'),
     path('payment/', PaymentView.as_view(), name='invoice-list-create'),
     path('payment/<int:id>/', PaymentView.as_view(), name='invoice-list-create'),
+
     path('dispute/<int:id>/', DisputeDetailsViews.as_view(), name='invoice-list-create'),
     path('invoices/<int:id>/', InvoiceDetailCustomView.as_view(), name='invoice-detail'),
     path('statementofamount/', CustomerStatmentOfAmount.as_view(), name='invoice-detail'),
@@ -76,5 +77,6 @@ urlpatterns = [
     path('vendorratesearch/<int:id>/', VendorRateSearchViewOrUpdate.as_view(), name='vendor-rate'),
     path('addvendorratepage/', VendorRateTabelView.as_view(), name='vendor-rate-tabel'),
     path('vendorratebycountrycode/', VendorRateByCountryCode.as_view(), name='vendor-rate-country-code'),
+    path('vendortargetsheet/', VendorTargetSheetByCountryCode.as_view(), name='vendor-rate-country-code'),
 ]
  

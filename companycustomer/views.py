@@ -19,6 +19,7 @@ from payments.models import Payment
 from vendorrate.models import VendorRate
 from vendorratetabel.models import VendorRateTabel
 from vendorratetabel.serializer import VendorRateTabelSerializer
+from companycustomer.models import CompanyUser
 
 class CustomerViews(APIView):
     permission_classes = [IsAuthenticated]
@@ -30,7 +31,10 @@ class CustomerViews(APIView):
                 return Response(serializer.data)
             else:
                 data = Customer.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+
                 serializer = CustomerSerializer(data, many=True)
+                for i in serializer.data:
+                    i["added_by"] = CompanyUser.objects.get(id = i['user_id']).user_name
                 return Response(serializer.data)
         except Exception as e:
             print(e)
@@ -49,7 +53,7 @@ class CustomerViews(APIView):
     
     def put(self, request, pk):
         try:
-            customer = Customer.objects.get(Q(id=pk) & Q(active = True) & Q(user_id = request.user.id))
+            customer = Customer.objects.get(Q(id=pk) & Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             serializer = CustomerSerializer(customer, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -61,7 +65,7 @@ class CustomerViews(APIView):
 
     def delete(self, request, pk):
         try:
-            customer = Customer.objects.get(Q(id=pk) & Q(user_id = request.user.id))
+            customer = Customer.objects.get(Q(id=pk) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             if customer.active == True:
                 customer.active = False
             else:

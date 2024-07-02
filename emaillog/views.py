@@ -131,7 +131,6 @@ class EmailLogView(APIView):
                 try:
                     message = request.data.get("message")
                     attachment = data["attachement"]
-                    print(message)
                     email = EmailMultiAlternatives(request.data.get('subject'), request.data.get('body'), 'simply2cloud@gmail.com', rates_emails)
                     if message != "undefined":
                         email.attach_alternative(message, "text/html")
@@ -140,7 +139,6 @@ class EmailLogView(APIView):
                     email.send()
                     return Response({"message": "Email sent Successfully!"})
                 except Exception as e:
-                    print(rates_emails)
                     # print(message)
                     print(f"Email sending failed: {e}")
                 return Response({"message": "Email Sent Successfully!"})
