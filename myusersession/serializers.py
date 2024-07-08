@@ -33,7 +33,7 @@ class MyUserRegisterSerializer(serializers.ModelSerializer):
     active = serializers.SerializerMethodField()
     class Meta:
         model = CompanyUser
-        exclude = ["password"] 
+        exclude = ["password", "is_superuser", "is_admin"] 
     def get_active(self, obj):
         return obj.is_active
 

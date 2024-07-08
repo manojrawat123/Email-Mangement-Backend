@@ -32,8 +32,8 @@ class EmailSheduleViews(APIView):
     def post(self, request, pk=None):
         if pk is not None:
             return Response({"error": "Post Method Not allowed"})
-        print(request.data)
-        serializer = EmailSheduleSerializers(data={ **request.data, "user_id" : request.user.id })
+        company_id = request.user.id if request.user.company_admin else request.user.parent_user.id
+        serializer = EmailSheduleSerializers(data={ **request.data, "company_id" : company_id })
         if serializer.is_valid():
             # Save data to the database
             data = serializer.save()

@@ -8,11 +8,11 @@ class CompanyUserAdmin(BaseUserAdmin):
     add_form_template = None
     change_user_password_template = None
 
-    list_display = ('email', 'company_name', 'company_phone', 'is_admin', 'parent_user')
+    list_display = ('email', 'company_name', 'company_phone', 'is_admin', 'parent_user', 'user_name')
     list_filter = ('is_admin',)
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('company_name', 'company_address', 'company_phone', 'company_desc', 'parent_user', 'company_admin')}),
+        ('Personal info', {'fields': ('company_name', 'company_address', 'company_phone', 'company_desc', 'parent_user', 'company_admin', 'user_name')}),
         ('Permissions', {'fields': ('is_admin', 'is_active', 'is_superuser')}),
     )
     # add_fieldsets is not a standard ModelAdmin attribute. UserAdmin
@@ -30,4 +30,4 @@ class CompanyUserAdmin(BaseUserAdmin):
 # Now register the new UserAdmin...
 admin.site.register(CompanyUser, CompanyUserAdmin)
 # Unregister the Group model from admin.
-admin.site.unregister(Group)
+# admin.site.unregister(Group)

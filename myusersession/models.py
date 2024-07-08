@@ -48,7 +48,7 @@ class CompanyUser(AbstractBaseUser):
         max_length=255,
         unique=True,
     )
-    parent_user = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    parent_user = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children',limit_choices_to={'company_admin': True})
     user_name = models.CharField(max_length=300)
     company_name = models.CharField(max_length=300)
     company_address = models.TextField()

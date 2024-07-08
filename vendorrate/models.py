@@ -9,7 +9,7 @@ from django.utils import timezone
 
 # Create your models here.
 class VendorRate(models.Model):
-    user_id = models.ForeignKey(CompanyUser, on_delete=models.CASCADE)
+    company_id = models.ForeignKey(CompanyUser, on_delete=models.CASCADE,limit_choices_to={'company_admin': True})
     vendor_rate_id = models.ForeignKey(VendorRateTabel, on_delete=models.CASCADE)
     country_code = models.CharField(max_length=100)
     country_name = models.CharField(max_length=255)

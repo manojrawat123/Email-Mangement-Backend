@@ -5,7 +5,7 @@ from myusersession.models import CompanyUser
 
 class EmailLog(models.Model):
     log_id = models.AutoField(primary_key=True)    
-    user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
+    company_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE,limit_choices_to={'company_admin': True})
     date = models.DateTimeField(auto_now_add=True)
     template_id = models.ForeignKey(EmailTemplate, on_delete=models.CASCADE)
     customer_id = models.ManyToManyField(Customer)

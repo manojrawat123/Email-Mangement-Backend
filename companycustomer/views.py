@@ -1,10 +1,10 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 from companycustomer.models import Customer
-from companycustomer.serializers import CustomerSerializer
+from companycustomer.serializers import CustomerSerializer, CustomerGetSerializer
 from django.db.models import Q
 from toproutes.models import Route
 from rate.models import RateTabel
@@ -19,22 +19,24 @@ from payments.models import Payment
 from vendorrate.models import VendorRate
 from vendorratetabel.models import VendorRateTabel
 from vendorratetabel.serializer import VendorRateTabelSerializer
-from companycustomer.models import CompanyUser
+from myusersession.models import CompanyUser
+from myusersession.serializers import MyUserRegisterSerializer
 
 class CustomerViews(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, pk=None):
         try:
             if pk is not None:
-                data = Customer.objects.get(Q(ScheduleID= pk) & Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+                data = Customer.objects.get(Q(id = pk) & Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
                 serializer = CustomerSerializer(data)
                 return Response(serializer.data)
             else:
-                data = Customer.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
-
+                data = Customer.objects.filter((Q(company_id = request.user.id) | Q(user_id = request.user.id)))
                 serializer = CustomerSerializer(data, many=True)
                 for i in serializer.data:
                     i["added_by"] = CompanyUser.objects.get(id = i['user_id']).user_name
+                    if i['added_by'] == "":
+                        i['added_by'] = "Admin"
                 return Response(serializer.data)
         except Exception as e:
             print(e)
@@ -43,7 +45,10 @@ class CustomerViews(APIView):
     def post(self, request, pk=None):
         if pk is not None:
             return Response({"Err": "Post Method Not allowed"})
-        serializer = CustomerSerializer(data={**request.data, "user_id" : request.user.id})
+        if request.user.company_admin:
+            serializer = CustomerSerializer(data={**request.data, "company_id" : request.user.id, "user_id" : request.user.id})
+        else:
+            serializer = CustomerSerializer(data={**request.data, "company_id" : request.user.parent_user.id, "user_id" : request.user.id})
         if serializer.is_valid():
             # Save data to the database
             data = serializer.save()
@@ -53,7 +58,7 @@ class CustomerViews(APIView):
     
     def put(self, request, pk):
         try:
-            customer = Customer.objects.get(Q(id=pk) & Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+            customer = Customer.objects.get(Q(id=pk) & Q(active = True) & (Q(user_id = request.user.id) | Q(company_id = request.user.id)))
             serializer = CustomerSerializer(customer, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -65,7 +70,7 @@ class CustomerViews(APIView):
 
     def delete(self, request, pk):
         try:
-            customer = Customer.objects.get(Q(id=pk) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+            customer = Customer.objects.get(Q(id=pk) & (Q(user_id = request.user.id) | Q(company_id = request.user.id)))
             if customer.active == True:
                 customer.active = False
             else:
@@ -83,14 +88,15 @@ class SearchPageApiView(APIView):
             search_page = request.query_params.get("page")
             if search_page is None:
                 return Response({"error" : "Please give serach Page"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Done
             if search_page == "rate_page":
-                
                 # Customer Data
-                customer = Customer.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)) & Q(active = True))
+                customer = Customer.objects.filter((Q(company_id = request.user.id) | Q(user_id = request.user.id)) & Q(active = True))
                 customer_serializer = CustomerSerializer(customer, many=True)
 
                 # Customer Rate Data
-                customer_rate_data = CustomerRateTable.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+                customer_rate_data = CustomerRateTable.objects.filter((Q(company_id = request.user.id) | Q(customer_id__user_id = request.user.id)))
                 customer_rate_serializer = CustomerRateSerializer(customer_rate_data, many=True)
  
                 return Response({
@@ -100,6 +106,7 @@ class SearchPageApiView(APIView):
                     # "data" : distinct_routes 
                     }, status=status.HTTP_200_OK)
             
+            # Done
             elif search_page == "top_route":
                 print(request.user)
                 distinct_routes = Route.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('top_route_name' , flat=True).distinct()
@@ -108,14 +115,14 @@ class SearchPageApiView(APIView):
                     "data" : distinct_routes
                 }, status=status.HTTP_200_OK)
             
-
+            # Done
             elif search_page == "vendor_rate_page":                
                 # Customer Details
-                customer = Customer.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)) & Q(active = True))
+                customer = Customer.objects.filter((Q(company_id = request.user.id) | Q(user_id = request.user.id)) & Q(active = True))
                 customer_serializer = CustomerSerializer(customer, many=True)
 
                 # Customer Rate Data
-                customer_rate_data = VendorRateTabel.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
+                customer_rate_data = VendorRateTabel.objects.filter((Q(company_id = request.user.id) | Q(customer_id__user_id = request.user.id)))
                 customer_rate_serializer = VendorRateTabelSerializer(customer_rate_data, many=True)
 
                 return Response({
@@ -124,24 +131,25 @@ class SearchPageApiView(APIView):
                     "page" : search_page
                     # "data" : distinct_routes 
                     }, status=status.HTTP_200_OK)
+            
             elif search_page == "all_country":
-                distinct_rate = VendorRate.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)) & Q(vendor_rate_id__customer_id__active=True)).values_list('country_name' , flat=True).distinct()
+                distinct_rate = VendorRate.objects.filter((Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id)) & Q(vendor_rate_id__customer_id__active=True)).values_list('country_name' , flat=True).distinct()
                 return Response({"country" : distinct_rate,
                 "page" : search_page}, status=status.HTTP_200_OK)
-            elif search_page == "get_country":
+            # Get Country
+            elif search_page == "get_country": 
                 if id is None:
                     return Response({"error" : "Please give Rate ID Page"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     distinct_rate = []
                     if request.GET.get('url') == '/search-vendor-rate':
                         print()
-                        distinct_rate = VendorRate.objects.filter(Q(vendor_rate_id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_name' , flat=True).distinct()
+                        distinct_rate = VendorRate.objects.filter(Q(vendor_rate_id = id) & (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))).values_list('country_name' , flat=True).distinct()
                     else:
-                        distinct_rate = RateTabel.objects.filter(Q(customer_rate_id = id) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_name' , flat=True).distinct()
+                        distinct_rate = RateTabel.objects.filter(Q(customer_rate_id = id) & (Q(company_id = request.user.id) | Q(customer_rate_id__customer_id__user_id = request.user.id))).values_list('country_name' , flat=True).distinct()
                     return Response({"country" : distinct_rate}, status = status.HTTP_200_OK)
             elif search_page == "country_code":
-                country_name = request.GET.get('country')
-                distinct_code = VendorRate.objects.filter(Q(country_name = country_name) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_code' , flat=True).distinct()
+                distinct_code = VendorRate.objects.filter((Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))).values_list('country_code' , flat=True).distinct()
                 return Response({"country_code" : distinct_code}, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -185,3 +193,43 @@ class CustomerStatmentOfAmount(APIView):
         except Exception as e:
             print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TransferCustomerView(APIView):
+    permission_classes = [IsAdminUser]
+    def get(self, request, id = None):
+        try:
+            # Customer User
+            customer = Customer.objects.filter(company_id = request.user.id)
+            customer_serializer = CustomerGetSerializer(customer, many = True)
+
+            # Company User
+            company_users = CompanyUser.objects.filter()
+            company_user_serializer = MyUserRegisterSerializer(company_users, many = True)
+            
+            return Response({
+                "customer" : customer_serializer.data,
+                "users" : company_user_serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request,  id = None):
+        try:  
+
+            customer = Customer.objects.get((Q(id = request.data.get('transfer_customer')) & Q(company_id = request.user.id)))
+            customer.user_id = CompanyUser.objects.get(Q(id = request.data.get("transfer_user")) & Q(parent_user = request.user.id))
+            try:
+                routes = Route.objects.filter(Q(user_id = request.data.get("fromDataTransferUser")) & Q(company_id = request.user.id))
+                routes.update(user_id = request.data.get("transfer_user"))
+            except Exception as e:
+                print("hiii")
+                print(e)
+            customer.save()
+            return Response({"message" : "---HII---"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

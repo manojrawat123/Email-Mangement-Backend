@@ -6,7 +6,7 @@ class Payment(models.Model):
     customer_id = models.ForeignKey(Customer, on_delete=models.CASCADE)
     payment_type = models.CharField(max_length=50, choices=[('IN', 'In'), ('OUT', 'Out')])
     payment_date = models.DateField()
-    user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
+    company_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE,limit_choices_to={'company_admin': True})
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2)
     bank_charges = models.DecimalField(max_digits=10, decimal_places=2)
     other_charges = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

@@ -26,48 +26,51 @@ from django.db.models import Q
 class EmailLogView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, pk=None):
-        if pk is not None:
-            data = EmailLog.objects.get(Q(ScheduleID= pk) & Q(user_id = request.user.id))
-            serializer = EmailLogSerializer(data)
-            return Response(serializer.data)
-        else:
-            customer_data = Customer.objects.filter(Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
-            customer_serializer = CustomerSerializer(customer_data, many=True)
+        try:
 
-            # Email Templates
-            email_template_data = EmailTemplate.objects.filter((Q(user_id = request.user.id) | Q(user_id = request.user.parent_user)))
-            email_template_serializer = EmailTemplateSerializers(email_template_data, many=True)
+            if pk is not None:
+                data = EmailLog.objects.get(Q(ScheduleID= pk) & Q(user_id = request.user.id))
+                serializer = EmailLogSerializer(data)
+                return Response(serializer.data)
+            else:
+                customer_data = Customer.objects.filter(Q(active = True) & (Q(company_id = request.user.id) | Q(user_id = request.user.id)))
+                customer_serializer = CustomerSerializer(customer_data, many=True)
 
-            distinct_rate = RateTabel.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('country_name' , flat=True).distinct()
-            distinct_routes = Route.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id))).values_list('top_route_name', flat=True).distinct()
+                # Email Templates
+                email_template_data = EmailTemplate.objects.filter(Q(company_id = request.user.id) | Q(company_id = request.user.parent_user))
+                email_template_serializer = EmailTemplateSerializers(email_template_data, many=True)
 
-            route_list = list(distinct_routes)
+                distinct_rate = RateTabel.objects.filter((Q(company_id = request.user.id) | 
+                                                    Q(customer_rate_id__customer_id__user_id = request.user.id))).values_list('country_name' , flat=True).distinct()
 
-            # Customer Rate Tabel
-            customer_rates = CustomerRateTable.objects.filter((Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
-            customer_rate_serializer = CustomerRateSerializer(customer_rates, many=True)
+                distinct_routes = Route.objects.filter((Q(user_id = request.user.id) | Q(company_id = request.user.id))).values_list('top_route_name', flat=True).distinct()
+                route_list = list(distinct_routes)
 
-            return Response({
-                "customer_data" : customer_serializer.data ,
-                "email_template" : email_template_serializer.data,
-                "route_list" : route_list,
-                "rate_list" : distinct_rate,
-                "customer_rate" : customer_rate_serializer.data
-            }) 
-        
-
-        
+                # Customer Rate Tabel
+                customer_rates = CustomerRateTable.objects.filter((Q(company_id = request.user.id) | 
+                                                    Q(customer_id__user_id = request.user.id)))
+                customer_rate_serializer = CustomerRateSerializer(customer_rates, many=True)
+                return Response({
+                    "customer_data" : customer_serializer.data ,
+                    "email_template" : email_template_serializer.data,
+                    "route_list" : route_list,
+                    "rate_list" : distinct_rate,
+                    "customer_rate" : customer_rate_serializer.data
+                }) 
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status= status.HTTP_500_INTERNAL_SERVER_ERROR)    
+     
     def post(self, request, pk=None):
         try:
-            ########## CONDITION ONE SEND RATE EMAIL ############
+            ############ CONDITION ONE SEND RATE EMAIL ############
             email_type = request.data.get('type')
             if email_type == "rate":
                 is_allCountry = request.data.get("is_all_country")
                 rate_id = request.data.get('rate_id')
-                
                 # Fetch rate data based on user and rate_id
                 rate_data = RateTabel.objects.filter(
-                    Q(user_id=request.user.id) & Q(customer_rate_id=rate_id)
+                    (Q(company_id=request.user.id) | Q(customer_rate_id__customer_id__user_id = request.user.id)) & Q(customer_rate_id=rate_id)
                 ).values(
                     'country_name', 
                     'country_code', 
@@ -76,8 +79,7 @@ class EmailLogView(APIView):
                     'effective_date',
                     'billing_increment_1', 
                     'billing_increment_n', 
-                )
-                
+                )                
                 # Optionally filter by selected countries if not all countries
                 if not is_allCountry or is_allCountry.lower() == 'false':
                     country_list = request.data.get('country').split(",")
@@ -116,16 +118,16 @@ class EmailLogView(APIView):
                 
                 return Response({"message": "Email sent successfully"})
 
-
             # Can Change in future
+            company_id = request.user.id if request.user.company_admin else request.user.parent_user.id
             data = {
             'customer_id': request.data.get('sendTo').split(","),
             'template_id': request.data['template_id'],
             'attachement': request.FILES.get('attachement', None),
-            'user_id' : request.user.id
+            'company_id' : company_id
             }
             serializers = EmailLogSerializer(data = data)   
-            rates_emails = list(Customer.objects.filter(Q(id__in=data['customer_id']) & Q(user_id = request.user.id)).values_list('rates_email', flat=True))
+            rates_emails = list(Customer.objects.filter(Q(id__in=data['customer_id']) & (Q(user_id = request.user.id) | Q(company_id = request.user.id))).values_list('rates_email', flat=True))
             if serializers.is_valid():
                 email_log_data = serializers.save()
                 try:
@@ -167,46 +169,3 @@ class EmailLogView(APIView):
 
         email_schedule.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-
-# class EmailLogEmailAttachmentViews(APIView):
-#     def post(self, request, pk=None):
-#         if pk is not None:
-#             return Response({"Err": "Post Method Not allowed"})
-#         serializer = EmailLogSerializer(data=request.data)
-        
-#         if serializer.is_valid():
-#             # Save data to the database
-#             data = serializer.save()                                                                
-#             try:
-#                 email_lis = []
-#                 schedul_customer = serializer.data.get('CustomerId')
-#                 for i in schedul_customer:
-#                     cemail = Customer.objects.get(id = i)
-#                     email_lis.append(cemail.RatesEmail)
-#                 print("Email List",email_lis)
-#                 message_id = serializer.data.get('TemplateID')
-#                 email_template = EmailTemplate.objects.get(TemplateID = message_id)
-#                 my_message = email_template.TemplateMessage
-#                 my_body = email_template.TemplateBody
-#                 # Email sending logic
-#                 email_from = settings.EMAIL_HOST_USER
-#                 email = "positive.mind.123456789@gmail.com"
-#                 recipient_list = email_lis
-#                 subject = my_message
-#                 message = f'''{my_body}'''
-
-#                 send_mail(subject, message, email_from, recipient_list)
-
-#                 # Return a success response
-#                 return Response({"Msg ":"Registration and email send successfully"})
-            
-#             except Exception as e:
-#                 # Handle exceptions related to email sending here
-#                 # You can log the error for debugging purposes
-#                 print(f"Email sending failed: {e}")
-#             # Return a success response
-#             return Response({"Msg ":"Registration successfully!!"})
-#         return Response(serializer.errors, status=400)
-    

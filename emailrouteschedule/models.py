@@ -7,7 +7,7 @@ from myusersession.models import CompanyUser
 
 class EmailRouteSchedule(models.Model):
     schedule_date_time = models.DateTimeField()
-    user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
+    company_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE, limit_choices_to={'company_admin': True})
     schedule_customer = models.ManyToManyField(Customer)
     schedule_template = models.ForeignKey(EmailTemplate, on_delete=models.CASCADE)
     schedule_route_id = models.CharField(max_length=250)
@@ -16,7 +16,3 @@ class EmailRouteSchedule(models.Model):
         ('sent', "Sent"),
        
     ), default = 'schedule')
-
-    # def clean(self):
-    #     if self.schedule_date_time <= timezone.now():
-    #         raise ValidationError('The scheduled date and time must be in the future.')

@@ -20,8 +20,10 @@ class AddTopRoutes(APIView):
             df = pd.read_excel(excel_file)
             top_route = request.data.get("route_name")
             required_columns = ["Route", "Profile", "Rate", "ASR", "ACD", "Increment"]
-            all_top_route = Route.objects.filter(Q(top_route_name = top_route) & (Q(user_id = request.user.id) |
-                                                                                   Q(user_id__parent_user = request.user.parent_user)))
+            company_id = request.user if request.user.company_admin else request.user.parent_user
+
+            all_top_route = Route.objects.filter(Q(top_route_name = top_route) & (Q(company_id = request.user.id) |
+                                                                                   Q(user_id = request.user.id)))
             if len(all_top_route) != 0:
                 return Response({"error" : "Route Name should unique"}, status=status.HTTP_400_BAD_REQUEST)
             if not all(column in df.columns for column in required_columns):
@@ -43,7 +45,7 @@ class AddTopRoutes(APIView):
             for index, row in df.iterrows():
                 try:
                     route = Route.objects.get(
-                        Q(top_route_name = top_route) & Q(destination = row["Route"]) & Q(user_id = request.user.id)
+                        Q(top_route_name = top_route) & Q(destination = row["Route"]) & (Q(company_id = request.user.id) | Q(customer_id__user_id = request.user.id))
                     )
                     route.destination = row["Route"]
                     route.profile = row["Profile"]
@@ -54,8 +56,6 @@ class AddTopRoutes(APIView):
                     route.status = True
                     route.save()
                 except Exception as e:
-                    print(top_route)
-                    print(e)
                     objs.append(Route(
                         top_route_name = top_route,
                         destination =row["Route"],
@@ -64,6 +64,7 @@ class AddTopRoutes(APIView):
                         asr = row["ASR"]  ,
                         acd  =row["ACD"]  ,
                         increment=  row["Increment"] ,
+                        company_id = company_id,
                         user_id = request.user,
                         status = True
                     ))
@@ -78,7 +79,7 @@ class AddTopRoutes(APIView):
             if id is None:
                 return Response({"error" : "Method Not Allowed"}, status = status.HTTP_405_METHOD_NOT_ALLOWED)
             else:
-                top_route = Route.objects.get(Q(id = id) & Q(user_id = request.user.id))
+                top_route = Route.objects.get(Q(id = id) & (Q(company_id = request.user.id) | Q(user_id = request.user.id)))
                 top_route_serializer = TopRouteSerializer(top_route, data=request.data, partial =True)
                 if top_route_serializer.is_valid():
                     top_route_serializer.save()
@@ -95,18 +96,19 @@ class AddTopRoutes(APIView):
             return Response({"error" : "Method Not Allowed"}, status=status.HTTP_400_BAD_REQUEST)
         else:
             try:
-                route = Route.objects.get(Q(id = id) & Q(user_id = request.user.id))
+                route = Route.objects.get(Q(id = id) & (Q(user_id = request.user.id) | Q(company_id = request.user.id)))
                 route.delete()
                 return Response({"error" : "Data Removed Successfully!!"}, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class GetTopRouteTable(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, id = None):
         try:
             route_id = request.data.get('top_route_name')
+            company_id = request.user if request.user.company_admin else request.user.parent_user
+
             objs = []
             if route_id is None:
                 return Response({"error" : "Please Provide Route Id"}, status=status.HTTP_400_BAD_REQUEST)
@@ -137,7 +139,8 @@ class GetTopRouteTable(APIView):
                             acd  =row["ACD"]  ,
                             increment=  row["Increment"] ,
                             status = True,
-                            user_id = request.user
+                            user_id = request.user,
+                            company_id = company_id
                         ))
                 route_all = Route.objects.filter(Q(top_route_name = route_id) & Q(user_id = request.user.id))
                 route_all.delete()
@@ -153,32 +156,31 @@ class GetTopRouteTable(APIView):
             if route_id is None:
                 return Response({"error" : "Please Provide Route Id"}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                top_route_name = Route.objects.filter(Q(top_route_name = route_id) & Q(user_id = request.user.id))
-                if len(top_route_name) == 0:
-                    return Response({"error" : "No data for selected top route"}, status=status.HTTP_400_BAD_REQUEST)
-                email_data = [
-                        {
-                            "id" : route.id,
-                            "destination": route.destination,
-                            "top_route_name": route.top_route_name,
-                            "profile": route.profile,
-                            "rate": f"{route.rate:.4f}",  
-                            "asr": route.asr,
-                            "acd": route.acd,
-                            "increment": route.increment,
-                            "user_id" : request.user.id
-                        }
-                        for route in top_route_name
-                    ]
-                html_data = data_to_styled_html_table(email_data)
-                react_data = data_to_styled_html_table_react(email_data)
-                return Response({
-                    "html_data" : html_data,
-                    "normal_data" : email_data ,
-                    "react_data" : react_data
-                } , status=status.HTTP_200_OK)
+                top_route_name = Route.objects.filter(Q(top_route_name = route_id) & (Q(user_id = request.user.id) | Q(company_id = request.user.id)))
+                if len(top_route_name) != 0:
+                    email_data = [
+                            {
+                                "id" : route.id,
+                                "destination": route.destination,
+                                "top_route_name": route.top_route_name,
+                                "profile": route.profile,
+                                "rate": f"{route.rate:.4f}",  
+                                "asr": route.asr,
+                                "acd": route.acd,
+                                "increment": route.increment,
+                                "user_id" : request.user.id
+                            }
+                            for route in top_route_name
+                        ]
+                    html_data = data_to_styled_html_table(email_data)
+                    react_data = data_to_styled_html_table_react(email_data)
+                    return Response({
+                        "html_data" : html_data,
+                        "normal_data" : email_data,
+                        "react_data" : react_data
+                    } , status=status.HTTP_200_OK)
+                else:
+                    return Response({"normal_data" : []}, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
             return Response({"error" : "Internal Server Occured"}, status=status.HTTP_400_BAD_REQUEST)           
-
-

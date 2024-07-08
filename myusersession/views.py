@@ -19,6 +19,13 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from myusersession.models import CompanyUser
+from menu.serializer import MenuSerializer
+from submenu.serializer import SubMenuSerializer
+from menu.models import Menu
+from submenu.models import Submenu
+from menuaccess.models import MenuAccess
+
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     pass
@@ -46,38 +53,80 @@ class UserLoginView(APIView):
         except Exception as e:
             print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 
 class VerifySessionView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
-        if request.user:
-            print(request.user.company_admin)
-            if request.user.company_admin:
-                return Response({"session" : True, "is_company" : True }, status=status.HTTP_200_OK)
+        try:
+            if request.user:
+                if request.user.company_admin:
+                    menu = Menu.objects.filter(active = True)
+                    menu_serializer = MenuSerializer(menu, many = True)
+                    for i in menu_serializer.data:
+                        i['label'] = i['name'] 
+                        submenu = Submenu.objects.filter(menu = i['id'])
+                        submenu_serializer = SubMenuSerializer(submenu, many=True)
+                        i['option'] = submenu_serializer.data
+                    return Response({"session" : True, "is_company" : True, "navbar" : menu_serializer.data }, status=status.HTTP_200_OK)
+                else:
+                    try:
+                        menu_ids = MenuAccess.objects.get(user_id = request.user.id).menu_id.all()
+                    except Exception as e:
+                        menu_ids = []
+                    try:
+                        submenu_ids = MenuAccess.objects.get(user_id = request.user.id).sub_menu.all()
+                    except Exception as e:
+                        submenu_ids = []
+                    menu = Menu.objects.filter(Q(active = True) & Q(id__in = menu_ids))
+                    menu_serializer = MenuSerializer(menu, many = True)
+                    for i in menu_serializer.data:
+                        i['label'] = i['name'] 
+                        submenu = Submenu.objects.filter(Q(menu = i['id']) & Q(id__in = submenu_ids))
+                        submenu_serializer = SubMenuSerializer(submenu, many=True)
+                        i['option'] = submenu_serializer.data
+                    return Response({"session" : True, "is_company" : False, "navbar" : menu_serializer.data }, status=status.HTTP_200_OK)
             else:
-                return Response({"session" : True, "is_company" : False }, status=status.HTTP_200_OK)
-        else:
-            return Response({"error" : "User Register Successfully !!"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error" : "UnAuth User!!"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserRegisterView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, id=None):
-        if (request.user.company_admin):
-            serializer = MyUserSerializers(data={**request.data, "company_name" : request.user.company_name})
-            if serializer.is_valid():
-                serializer.save()
-                try:
-                    user = CompanyUser.objects.get(email = serializer.data.get('email'))
-                    user.is_active = True
-                    user.parent_user = request.user
-                    user.save()
-                    return Response(serializer.data, status=status.HTTP_201_CREATED)
-                except Exception as e:
-                    return Response({"error" : e}, status=status.HTTP_400_BAD_REQUEST)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({"error" : "You are not authenticated to make user"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+
+            if (request.user.company_admin):
+                serializer = MyUserSerializers(data={**request.data, "company_name" : request.user.company_name})
+                if serializer.is_valid():
+                    serializer.save()
+                    try:
+                        user = CompanyUser.objects.get(email = serializer.data.get('email'))
+                        user.is_active = True
+                        user.parent_user = request.user
+                        user.user_name = request.data.get("user_name")
+                        user.save()
+                        return Response({"message" : "User Registration Successfully"}, status=status.HTTP_201_CREATED)
+                    except Exception as e:
+                        return Response({"error" : e}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                serializer = MyUserSerializers(data={**request.data, "company_name" : request.user.company_name})
+                if serializer.is_valid():
+                    serializer.save()
+                    try:
+                        user = CompanyUser.objects.get(email = serializer.data.get('email'))
+                        user.is_active = True
+                        user.parent_user = request.user.parent_user
+                        user.user_name = request.data.get("user_name")
+                        user.save()
+                        return Response({"message" : "User Registration Successfully"}, status=status.HTTP_201_CREATED)
+                    except Exception as e:
+                        return Response({"error" : e}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({"error" : "Internal Server Error"})
 
 class GetAllUserView(APIView):
     permission_classes = [IsAuthenticated]
@@ -119,6 +168,7 @@ class GetAllUserView(APIView):
             print(e)
             print(request.data)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     def delete(self, request, id =None):
         try:
             print("Hii")
@@ -137,7 +187,7 @@ class GetAllUserView(APIView):
         except Exception as e:
             print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+
 class ForgotPassword(APIView):
     def post(self , request, id = None):
         try:

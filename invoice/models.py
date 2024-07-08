@@ -7,7 +7,7 @@ from myusersession.models import CompanyUser
 
 class Invoice(models.Model):
     customer_id = models.ForeignKey(Customer, on_delete=models.CASCADE)  
-    user_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE)
+    company_id = models.ForeignKey(CompanyUser, on_delete = models.CASCADE,limit_choices_to={'company_admin': True})
     invoice_type = models.CharField(max_length=3, choices=[('IN', 'In'), ('OUT', 'Out')])
     invoice_number = models.CharField(max_length=200)
     invoice_from_date = models.DateField()
@@ -19,7 +19,7 @@ class Invoice(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user_id', 'invoice_number'], name='unique_user_invoice')
+            models.UniqueConstraint(fields=['company_id', 'invoice_number'], name='unique_user_invoice')
         ]
 
     def __str__(self):
