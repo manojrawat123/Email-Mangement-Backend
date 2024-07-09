@@ -21,6 +21,7 @@ from vendorratetabel.models import VendorRateTabel
 from vendorratetabel.serializer import VendorRateTabelSerializer
 from myusersession.models import CompanyUser
 from myusersession.serializers import MyUserRegisterSerializer
+from datetime import timedelta, datetime
 
 class CustomerViews(APIView):
     permission_classes = [IsAuthenticated]
@@ -31,8 +32,16 @@ class CustomerViews(APIView):
                 serializer = CustomerSerializer(data)
                 return Response(serializer.data)
             else:
-                data = Customer.objects.filter((Q(company_id = request.user.id) | Q(user_id = request.user.id)))
-                serializer = CustomerSerializer(data, many=True)
+                customer_name = request.GET.get("customer")
+                from_date = datetime.strptime(request.GET.get("from_date"), "%Y-%m-%d") if request.GET.get('from_date') else None
+                to_date = datetime.strptime(request.GET.get("to_date"), "%Y-%m-%d") if request.GET.get("to_date") else None
+                customer = Customer.objects.filter((Q(company_id = request.user.id) | Q(user_id = request.user.id)))
+                if customer_name is not None and from_date is not None and to_date is not None:
+                    customer = customer.filter(Q(created_date__range=[from_date, to_date]) & Q(customer_name__icontains = customer_name))
+                else:
+                    last_month = (datetime.now() - timedelta(days=30))
+                    customer = customer.filter(Q(created_date__gt = last_month))
+                serializer = CustomerSerializer(customer, many=True)
                 for i in serializer.data:
                     i["added_by"] = CompanyUser.objects.get(id = i['user_id']).user_name
                     if i['added_by'] == "":
@@ -217,18 +226,18 @@ class TransferCustomerView(APIView):
 
     def post(self, request,  id = None):
         try:  
-
-            customer = Customer.objects.get((Q(id = request.data.get('transfer_customer')) & Q(company_id = request.user.id)))
-            customer.user_id = CompanyUser.objects.get(Q(id = request.data.get("transfer_user")) & Q(parent_user = request.user.id))
-            try:
-                routes = Route.objects.filter(Q(user_id = request.data.get("fromDataTransferUser")) & Q(company_id = request.user.id))
-                routes.update(user_id = request.data.get("transfer_user"))
-            except Exception as e:
-                print("hiii")
-                print(e)
-            customer.save()
-            return Response({"message" : "---HII---"}, status=status.HTTP_200_OK)
+            for i in request.data.get('transfer_customer'):
+                customer = Customer.objects.get((Q(id = i) & Q(company_id = request.user.id)))
+                customer.user_id = CompanyUser.objects.get(Q(id = request.data.get("transfer_user")) & Q(parent_user = request.user.id))
+                try:
+                    routes = Route.objects.filter(Q(user_id = request.data.get("fromDataTransferUser")) & Q(company_id = request.user.id))
+                    routes.update(user_id = request.data.get("transfer_user"))
+                except Exception as e:
+                    print(e)
+                customer.save()
+            return Response({"message" : "User Transfered Successfully!!"}, status=status.HTTP_200_OK)
         except Exception as e:
+            print(request.data)
             print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

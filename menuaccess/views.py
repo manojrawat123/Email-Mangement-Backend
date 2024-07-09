@@ -22,8 +22,7 @@ class MenuAccessApiView(APIView):
                 try:
                     menu_access = MenuAccess.objects.get(user_id = id)
                 except Exception as e:
-                    print(e)
-                    menu = Menu.objects.filter(Q(active = True) & ~Q(id = 2))
+                    menu = Menu.objects.filter(Q(active = True) & ~ Q(id = 2))
                     menu_serializer = MenuSerializer(menu, many = True)
                     for i in menu_serializer.data:
                         i['label'] = i['name']
@@ -38,7 +37,7 @@ class MenuAccessApiView(APIView):
                 menu_serializer = MenuSerializer(menu, many = True)
 
                 # Not Accessed Menus
-                no_menu = Menu.objects.exclude(Q(active = True) & Q(id__in = menu_access.menu_id.all()))
+                no_menu = Menu.objects.exclude(Q(active = True) & Q(id__in = menu_access.menu_id.all())).filter(~Q(id = 2))
                 not_menu_serializer = MenuSerializer(no_menu, many = True)
                 for i in not_menu_serializer.data:
                     i['label'] = i['name'] 
@@ -61,7 +60,6 @@ class MenuAccessApiView(APIView):
                 
                 
         except Exception as e:
-            print(e)
             return Response({"error" : "Internal Server Error"}, status= status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     def post(self , request, id= None):
@@ -88,7 +86,6 @@ class MenuAccessApiView(APIView):
                 
 
         except Exception as e:
-            print(e)
             return Response({"error" : "Internal Server Error"}, status= status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -108,7 +105,6 @@ class MenuAccessApiView(APIView):
                     menu_access.sub_menu.remove(sub_menu)
                     return Response({"message" : "Deleted Successfully!!"}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
                             

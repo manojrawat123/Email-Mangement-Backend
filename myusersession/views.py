@@ -140,7 +140,6 @@ class GetAllUserView(APIView):
                     i['added_by'] = CompanyUser.objects.get(id = i['parent_user']).user_name
                 else:
                     i['added_by'] = 'Admin'
-            print(user_serialzer.data)
             return Response(user_serialzer.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)

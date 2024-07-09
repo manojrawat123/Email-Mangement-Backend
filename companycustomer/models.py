@@ -13,10 +13,10 @@ class Customer(models.Model):
     country_code = models.ForeignKey(NewCountryCode, on_delete=models.CASCADE,related_name='customers_country_code')
     legal_email = models.EmailField()
     manager_name = models.CharField(max_length=100)
+    created_date = models.DateField(auto_now_add=True)
     manager_email = models.EmailField()
     manager_phone_country_code = models.ForeignKey(NewCountryCode, on_delete=models.CASCADE,                                    related_name='customers_manager_phone_country_code')
     manager_phone = models.CharField(max_length=15)
     status = models.CharField(max_length=10, default='Active')
     active = models.BooleanField(default=True)
     dnd = models.BooleanField(default=False)
-
