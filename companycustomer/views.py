@@ -173,7 +173,6 @@ class CustomerStatmentOfAmount(APIView):
             customer = Customer.objects.filter(Q(active = True) & (Q(user_id = request.user.id) | Q(user_id__parent_user = request.user.id)))
             customer_serializer = CustomerSerializer(customer, many=True)
             for i in customer_serializer.data:
-
                 # INVOICE Details
                 invoice = Invoice.objects.filter(customer_id = i["id"])
                 i['invoice_amount_in'] = invoice.filter(invoice_type = "IN").aggregate(total=Sum('invoice_amount'))['total'] or 0
@@ -228,7 +227,7 @@ class TransferCustomerView(APIView):
         try:  
             for i in request.data.get('transfer_customer'):
                 customer = Customer.objects.get((Q(id = i) & Q(company_id = request.user.id)))
-                customer.user_id = CompanyUser.objects.get(Q(id = request.data.get("transfer_user")) & Q(parent_user = request.user.id))
+                customer.user_id = CompanyUser.objects.get(Q(id = request.data.get("transfer_user")) &( Q(parent_user = request.user.id) | Q(id = request.user.id)))
                 try:
                     routes = Route.objects.filter(Q(user_id = request.data.get("fromDataTransferUser")) & Q(company_id = request.user.id))
                     routes.update(user_id = request.data.get("transfer_user"))
@@ -240,5 +239,3 @@ class TransferCustomerView(APIView):
             print(request.data)
             print(e)
             return Response({"error" : "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-

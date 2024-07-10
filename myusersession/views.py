@@ -147,12 +147,15 @@ class GetAllUserView(APIView):
     def put(self, request, id = None):
         try:
             if id is None:
-                return Response({"error" : "Method Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-            s_user = CompanyUser.objects.get(id = id)
+                s_user = CompanyUser.objects.get(id = request.user.id)
+                request.data['password'] = make_password(request.data.get('password'))
+                user_serializer = CompanyUserUpdateSerializer(s_user, data=request.data, partial=True) 
+                if user_serializer.is_valid():
+                    user_serializer.save()
+                    return Response({"message" : "user Updated Successfully"})  
+                return Response(user_serializer.errors, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            s_user = CompanyUser.objects.get(Q(id = id) & Q(parent_user = request.user.id))
             if s_user:
-                # if 'password' in request.data:
-                
-                # request.data['password2'] = make_password(request.data.get('password'))
                 request.data['password'] = make_password(request.data.get('password'))
                 print(request.data.get('password') == request.data.get('password2'))
                 user_serializer = CompanyUserUpdateSerializer(s_user, data=request.data, partial=True) 
