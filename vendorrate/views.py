@@ -217,7 +217,6 @@ class VendorTargetSheetByCountryCode(APIView):
             print(e)
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class VendorRateSearchViewOrUpdate(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, id = None):
