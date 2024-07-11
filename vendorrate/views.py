@@ -133,7 +133,7 @@ class VendorRateByCountryCode(APIView):
         try:
             country_code = request.GET.get("country_codes")
             # Country Code
-            rate_tabel = VendorRate.objects.filter(Q(country_name = country_code) & ((Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))))
+            rate_tabel = VendorRate.objects.filter(Q(country_name__icontains = country_code) & ((Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))))
             rate_serializer = VendorRateSerializer(rate_tabel, many=True)
 
             # Distinct Rate
@@ -163,30 +163,15 @@ class VendorTargetSheetByCountryCode(APIView):
             # Country Code
             if country_name:
                 rate_tabel = VendorRate.objects.filter(
-                    Q(country_name=country_name) & 
+                    Q(country_name__icontains=country_name) & 
                     (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))
                 )
-                # Distinct Rate
-                distinct_rate = VendorRate.objects.filter(
-                    Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id) & 
-                    Q(vendor_rate_id__customer_id__active = True) 
-                ).values_list('country_name', flat=True).distinct()
-                
             elif country_code:
                 rate_tabel = VendorRate.objects.filter(
-                    Q(country_code = country_code) & 
+                    Q(country_code__icontains = country_code) & 
                     (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))
                 )
-                distinct_rate = VendorRate.objects.filter(
-                    Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id) & 
-                    Q(vendor_rate_id__customer_id__active = True) 
-                ).values_list('country_code').distinct()
-
             rate_serializer = VendorRateGetSerializer(rate_tabel, many=True)
-
-            
-            # Prepare the data for collapsing
-            print(len(rate_serializer.data))
             data = rate_serializer.data
             result = []
             for i in data:
@@ -215,7 +200,7 @@ class VendorTargetSheetByCountryCode(APIView):
  
             return Response({
                 "data": result,
-                "country_list": distinct_rate
+                # "country_list": distinct_rate
             }, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
