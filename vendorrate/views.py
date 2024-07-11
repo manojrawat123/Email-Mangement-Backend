@@ -16,6 +16,7 @@ from vendorratetabel.serializer import VendorRateTabelSerializer
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from collections import defaultdict
+import math
 
 class VendorRateTableViews(APIView):   
     permission_classes = [IsAuthenticated]
@@ -159,20 +160,31 @@ class VendorTargetSheetByCountryCode(APIView):
             # country_code = request.GET.get("country_codes")
             country_name = request.GET.get('country_name')
             country_code = request.GET.get('country_code')
+            page_no = int(request.GET.get('page_no', 0)) * 100            
 
             # Country Code
             if country_name:
                 rate_tabel = VendorRate.objects.filter(
                     Q(country_name__icontains=country_name) & 
                     (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))
-                )
+                )[page_no: page_no + 100]
+                total_count = VendorRate.objects.filter(
+                    Q(country_name__icontains=country_name) & 
+                    (Q(company_id=request.user.id) | Q(vendor_rate_id__customer_id__user_id=request.user.id))
+                ).count()
             elif country_code:
                 rate_tabel = VendorRate.objects.filter(
                     Q(country_code__icontains = country_code) & 
                     (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))
-                )
+                )[page_no: page_no + 100]
+                total_count = VendorRate.objects.filter(
+                    Q(country_code__icontains = country_code) & 
+                    (Q(company_id = request.user.id) | Q(vendor_rate_id__customer_id__user_id = request.user.id))
+                ).count()
             rate_serializer = VendorRateGetSerializer(rate_tabel, many=True)
+            length_of_pages = math.ceil(total_count / 100)
             data = rate_serializer.data
+            
             result = []
             for i in data:
                 if len(result) != 0:
@@ -190,17 +202,16 @@ class VendorTargetSheetByCountryCode(APIView):
                                 result.append({"country_name": i.get('country_name'), "country_code": i.get('country_code'), f"LCR{1}": f'''{i['vendor_rate_id']["customer_id"]['customer_name']} - {i["rate"]}'''})
                 else:
                     result.append({"country_name": i['country_name'], "country_code": i['country_code'], f"LCR{1}": f'''{i['vendor_rate_id']["customer_id"]['customer_name']} - {i["rate"]}'''})
-                 
             for i in result:
                 values_with_LCR = [key for key in i if key.startswith('LCR')]
                 suggested_byy = float(i[values_with_LCR[0]].split('-')[1].strip()) - 0.05 * float(i[values_with_LCR[0]].split('-')[1].strip())
                 suggested_sell = float(i[values_with_LCR[-1]].split('-')[1].strip()) +  0.10* float(i[values_with_LCR[-1]].split('-')[1].strip())
                 i['suggested_buy'] = suggested_byy
-                i['suggested_sell'] = suggested_sell
- 
+                i['suggested_sell'] = suggested_sell 
             return Response({
                 "data": result,
-                # "country_list": distinct_rate
+                "length" : length_of_pages,
+                "page_no" : page_no
             }, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
